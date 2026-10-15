@@ -58,7 +58,7 @@ pip install rapidocr_onnxruntime
 
 ## 环境变量配置
 
-1. 复制 `.env.example` 文件并重命名为 `.env`（未配置密钥时调用将直接失败，并返回包含注册链接的配置指引；也可在会话中直接把 API 密钥发给助手代配）
+1. 复制 `assets/env.example` 为技能根目录下的 `.env`（未配置密钥时调用将直接失败，并返回包含注册链接的配置指引；也可在会话中直接把 API 密钥发给助手代配）
 2. 根据需要配置以下选项：
 
 ```env
@@ -312,7 +312,7 @@ print(result['text'])
 1. **未检测到 SILICON_FLOW_API_KEY**
    - 问题：调用即失败，错误信息包含「未检测到 SILICON_FLOW_API_KEY」及完整配置指引
    - 说明：云端引擎为默认引擎，首次使用前需先配置硅基流动 API 密钥（脚本会做前置校验，未配置时不会发起请求）
-   - 解决方案：按错误信息指引操作——前往官网注册并创建密钥（https://cloud.siliconflow.cn/i/xheBSplQ），填入 `.env.example` 保存后重命名为 `.env`；或在会话中直接把密钥发给助手代配
+   - 解决方案：按错误信息指引操作——前往官网注册并创建密钥（https://cloud.siliconflow.cn/i/xheBSplQ），复制 `assets/env.example` 为技能根目录下的 `.env` 并填入密钥；或在会话中直接把密钥发给助手代配
 
 2. **硅基流动API 401错误**
    - 问题：`Unauthorized: 401 Client Error`

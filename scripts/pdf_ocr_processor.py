@@ -5,25 +5,16 @@ PDF OCR处理脚本
 支持两种OCR引擎：
 1. 硅基流动大模型API（云端，默认）
 2. RapidOCR（本地，可选；需手动安装依赖）
-说明：PDF/图片基础依赖缺失时仍会自动安装；本地OCR引擎依赖需手动安装。
+说明：requests / python-dotenv / PDF、图片基础依赖缺失时会自动安装；本地OCR引擎依赖需手动安装。
 """
 
 import os
 import sys
 import time
 import base64
-import requests
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from dotenv import load_dotenv
-
-# 加载环境变量：优先技能根目录的 .env（与调用方式、工作目录无关），否则退回默认查找
-_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
-if _ENV_FILE.is_file():
-    load_dotenv(_ENV_FILE)
-else:
-    load_dotenv()
 
 
 def install_dependency(package):
@@ -36,6 +27,36 @@ def install_dependency(package):
     except subprocess.CalledProcessError as e:
         print(f"依赖 {package} 安装失败: {e}")
         return False
+
+
+def _require(module_name, pip_name=None):
+    """导入必需依赖；缺失时自动安装后重试
+
+    requests / python-dotenv 为运行必需依赖，环境缺失时自动补齐，
+    避免用户直接拿到裸 ModuleNotFoundError。
+    """
+    try:
+        return __import__(module_name)
+    except ImportError:
+        pkg = pip_name or module_name
+        if install_dependency(pkg):
+            try:
+                return __import__(module_name)
+            except ImportError:
+                pass
+        raise SystemExit(f"缺少必需依赖 {pkg}，自动安装失败，请手动执行: pip install {pkg}")
+
+
+requests = _require("requests")
+dotenv = _require("dotenv", "python-dotenv")
+load_dotenv = dotenv.load_dotenv
+
+# 加载环境变量：优先技能根目录的 .env（与调用方式、工作目录无关），否则退回默认查找
+_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+if _ENV_FILE.is_file():
+    load_dotenv(_ENV_FILE)
+else:
+    load_dotenv()
 
 
 class RapidOCREngine:
@@ -92,7 +113,7 @@ class SiliconFlowOCREngine:
                 "请先前往官网注册账号并创建 API 密钥：https://cloud.siliconflow.cn/i/xheBSplQ\n"
                 "\n"
                 "② 配置方式（二选一）：\n"
-                "   · 自行配置：将 API 密钥填入技能目录下的 .env.example，保存后重命名为 .env，即可正常使用；\n"
+                "   · 自行配置：复制技能目录下 assets/env.example 为根目录 .env，填入 API 密钥即可正常使用；\n"
                 "   · 托管配置：直接在会话中把 API 密钥发给助手，由助手代为写入 .env。\n"
                 "\n"
                 "③ 备选方案：本技能同时支持 RapidOCR 本地引擎（完全离线、免费，但对电脑配置要求较高）。"
