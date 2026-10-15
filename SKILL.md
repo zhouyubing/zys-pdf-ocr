@@ -1,0 +1,344 @@
+---
+name: zys-pdf-ocr
+description: 支持双引擎的PDF OCR识别技能，可从影印版PDF文件和图片文件中提取文字内容（云端优先定制版）
+description_zh: PDF OCR助手：支持双引擎的PDF OCR识别技能，可从影印版PDF文件和图片文件中提取文字内容（云端优先定制版）。
+description_en: 'PDF OCR Assistant: a dual-engine OCR skill that extracts text from scanned PDF files and image files (cloud-first custom edition).'
+slug: zys-pdf-ocr
+display_name: PDF OCR助手
+displayName: PDF OCR助手
+display_name_en: PDF OCR Tool
+summary: 双引擎OCR技能：从影印版PDF与图片中提取文字，默认硅基流动云端大模型（PaddleOCR-VL-1.5），可选RapidOCR本地引擎。
+version: 1.0.0
+author: 周永三
+category: productivity
+license: MIT
+tags: [ocr, pdf, image, text-extraction, chinese, english, siliconflow, rapidocr, local-ocr]
+examples_zh:
+  - 帮我把这个扫描版 PDF 识别成文字
+  - 用硅基流动 API 高精度识别这张图片里的文字
+  - 这个手写体扫描件帮我识别一下，优先用云端引擎
+examples_en:
+  - Extract text from this scanned PDF
+  - Recognize the text in this image with high accuracy
+  - Read this handwritten scan using the cloud engine
+agent_created: true
+---
+
+# PDF OCR 助手（ZYS PDF OCR Tool）
+
+PDF OCR技能用于从影印版PDF文件和图片文件中提取文字内容。该技能支持两种OCR引擎（云端优先，默认）：
+- **硅基流动大模型**（云端引擎，默认）：使用AI大模型进行高精度OCR识别，需配置API密钥
+- **RapidOCR**（本地引擎，可选）：无需API密钥，免费使用，识别速度快，对电脑配置要求较高
+
+## 功能特性
+
+- 支持影印版PDF文件的文字提取
+- 支持多种图片格式的文字识别（JPG、PNG、BMP、GIF、TIFF、WEBP）
+- **双引擎支持**：硅基流动API（云端，默认）和RapidOCR（本地，可选）
+- 支持中文和英文文字识别
+- 保持文字的顺序和结构
+- 自动将PDF页面转换为图片进行识别
+- 智能引擎回退：硅基流动为默认引擎；主动选择本地RapidOCR但依赖缺失时，自动回退到硅基流动云端引擎
+
+## 安装
+
+### 依赖要求
+
+```bash
+pip install pymupdf pillow requests python-dotenv
+```
+
+### 可选依赖（RapidOCR 本地引擎）
+
+安装RapidOCR可获得本地离线识别能力（默认走云端，无需API密钥）：
+
+```bash
+pip install rapidocr_onnxruntime
+```
+
+## 环境变量配置
+
+1. 复制 `.env.example` 文件并重命名为 `.env`（未配置密钥时调用将直接失败，并返回包含注册链接的配置指引；也可在会话中直接把 API 密钥发给助手代配）
+2. 根据需要配置以下选项：
+
+```env
+# OCR引擎选择
+# - "siliconflow": 使用硅基流动API引擎（默认，需要API密钥）
+# - "rapid": 使用RapidOCR本地引擎（需手动安装依赖）
+OCR_ENGINE=siliconflow
+
+# 如果使用硅基流动API引擎，需要配置以下选项：
+SILICON_FLOW_API_KEY=your_api_key_here
+SILICON_FLOW_OCR_MODEL=PaddlePaddle/PaddleOCR-VL-1.5
+
+# 可选：云端请求调优（默认值如下，一般无需修改）
+SILICON_FLOW_TIMEOUT=300
+SILICON_FLOW_MAX_ATTEMPTS=3
+```
+
+## 快速开始
+
+### 使用默认引擎（云端 siliconflow）
+
+```python
+# 导入OCR处理器
+from scripts.pdf_ocr_processor import PDFOCRProcessor
+
+# 创建处理器实例（默认使用云端 siliconflow 引擎）
+processor = PDFOCRProcessor()
+
+# 执行PDF OCR识别
+result = processor.ocr_pdf('path/to/your/scanned.pdf')
+
+# 获取识别结果
+print(f"识别完成，共 {result['page_count']} 页")
+print(f"使用引擎: {result['engine']}")
+print(result['text'])
+```
+
+### 使用硅基流动API引擎
+
+```python
+# 导入OCR处理器
+from scripts.pdf_ocr_processor import PDFOCRProcessor
+
+# 创建处理器实例，指定使用硅基流动API
+processor = PDFOCRProcessor(engine="siliconflow")
+
+# 执行PDF OCR识别
+result = processor.ocr_pdf('path/to/your/scanned.pdf')
+
+# 获取识别结果
+print(f"识别完成，共 {result['page_count']} 页")
+print(result['text'])
+```
+
+### 识别图片文件
+
+```python
+# 导入OCR处理器
+from scripts.pdf_ocr_processor import PDFOCRProcessor
+
+# 创建处理器实例
+processor = PDFOCRProcessor()  # 或 PDFOCRProcessor(engine="siliconflow")
+
+# 执行图片OCR识别
+result = processor.ocr_image_file('path/to/your/image.jpg')
+
+# 获取识别结果
+print(f"识别结果: {result['text']}")
+```
+
+### 命令行使用
+
+```bash
+# 使用默认引擎（云端 siliconflow）
+python pdf_ocr_processor.py your_document.pdf
+
+# 显式指定云端引擎
+python pdf_ocr_processor.py your_document.pdf siliconflow
+```
+
+## 进阶使用示例
+
+### 批量处理多个PDF文件
+
+```python
+import os
+from pdf_ocr_processor import PDFOCRProcessor
+
+# 创建处理器实例
+processor = PDFOCRProcessor()
+
+# 批量处理目录中的所有PDF文件
+pdf_dir = "path/to/pdf/files"
+output_dir = "path/to/output"
+os.makedirs(output_dir, exist_ok=True)
+
+for pdf_file in os.listdir(pdf_dir):
+    if pdf_file.endswith('.pdf'):
+        pdf_path = os.path.join(pdf_dir, pdf_file)
+        output_path = os.path.join(output_dir, f"{os.path.splitext(pdf_file)[0]}.txt")
+        
+        print(f"处理文件: {pdf_file}")
+        try:
+            result = processor.ocr_pdf(pdf_path)
+            
+            # 保存识别结果到文本文件
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(f"=== PDF OCR 识别结果 ===\n")
+                f.write(f"文件名: {pdf_file}\n")
+                f.write(f"页数: {result['page_count']}\n")
+                f.write(f"使用引擎: {result['engine']}\n\n")
+                f.write(result['text'])
+            
+            print(f"处理完成，结果已保存到: {output_path}")
+        except Exception as e:
+            print(f"处理失败: {e}")
+```
+
+### 混合使用两种引擎
+
+```python
+from pdf_ocr_processor import PDFOCRProcessor
+
+def process_with_best_engine(pdf_path):
+    """优先使用硅基流动云端引擎，识别效果不佳时回退到本地RapidOCR"""
+    # 首先使用硅基流动云端引擎
+    silicon_processor = PDFOCRProcessor(engine="siliconflow")
+    silicon_result = silicon_processor.ocr_pdf(pdf_path)
+    
+    # 简单评估识别效果（例如：检查识别出的文本长度）
+    text_length = len(silicon_result['text'])
+    
+    if text_length < 100:  # 如果识别出的文本太短，可能效果不佳
+        print("硅基流动识别效果可能不佳，尝试使用RapidOCR本地引擎...")
+        rapid_processor = PDFOCRProcessor(engine="rapid")
+        rapid_result = rapid_processor.ocr_pdf(pdf_path)
+        return rapid_result
+    else:
+        return silicon_result
+
+# 使用示例
+result = process_with_best_engine('path/to/your/document.pdf')
+print(f"识别完成，使用引擎: {result['engine']}")
+print(result['text'])
+```
+
+## 支持的文件格式
+
+- **PDF文件**: .pdf
+- **图片文件**: .jpg, .jpeg, .png, .bmp, .gif, .tiff, .webp
+
+## 输出格式
+
+```python
+{
+    "text": "识别的完整文本内容",
+    "page_count": 页数,  # 图片文件始终为1
+    "engine": "rapid" | "siliconflow"  # 使用的OCR引擎
+}
+```
+
+## 使用场景
+
+- 处理扫描版合同、协议等文档
+- 提取影印版书籍、报告中的文字
+- 处理无法直接复制文字的PDF文件
+- 批量处理扫描版PDF文档
+- 识别截图、扫描件等图片中的文字
+- 处理手写体或印刷体图片文字识别
+
+## 注意事项
+
+1. **硅基流动API引擎（默认）**：
+   - 需要有效的API密钥（配置于 `.env`）
+   - 会产生费用（按 token 计费，单页约数百 token）
+   - 识别速度取决于文件页数、图片大小和网络状况
+   - 单页请求默认 300 秒超时、失败自动重试最多 3 次（超时/断网）；大批量文档请预留时间
+   - 模型默认 `PaddlePaddle/PaddleOCR-VL-1.5`
+   - 未检测到密钥时不会发起请求，直接返回配置指引
+
+2. **RapidOCR引擎（可选，需手动安装）**：
+   - 完全免费，无需网络连接
+   - 需手动安装依赖后选用（`pip install rapidocr_onnxruntime`）
+   - 首次使用会自动下载模型文件，识别速度取决于CPU性能
+   - 对电脑配置要求较高
+
+3. 对于复杂的扫描版PDF或图片，识别准确率可能会有所不同
+4. 建议使用高清晰度的扫描版PDF或图片以获得更好的识别效果
+5. 多页 PDF 逐页串行请求，页数越多耗时越长（每页通常数十秒）
+
+## 触发使用不同引擎的提示词
+
+在与 AI IDE 中的助手交互时，您可以使用以下提示词来指定使用不同的 OCR 引擎：
+
+### 📍 触发硅基流动 API（云端引擎，默认）的提示词
+- "使用硅基流动 API 处理这个 PDF"
+- "用大模型 OCR 识别这个文件"
+- "高精度识别这个文档"
+- "处理复杂的扫描件"
+- "用云端 OCR 引擎"
+- "使用 AI 大模型识别"
+
+### 📍 触发 RapidOCR（本地引擎）的提示词
+- "使用本地 OCR 引擎处理这个 PDF"
+- "用 RapidOCR 识别这个文件"
+- "本地处理，不需要 API"
+- "快速识别这个文档"
+- "离线处理这个 PDF"
+- "不使用硅基流动 API，用本地引擎"
+
+### 📍 示例对话
+
+**示例 1：使用云端引擎（默认）**
+```
+用户：这个 PDF 包含手写体，需要高精度识别，用硅基流动 API
+助手：理解，我将使用硅基流动 API 大模型为您处理。请提供 PDF 文件路径；如尚未配置 API 密钥，我会先引导你完成配置。
+```
+
+**示例 2：使用本地引擎（依赖缺失时将自动回退云端）**
+```
+用户：帮我处理这个扫描版 PDF，用本地 OCR 引擎快速识别
+助手：本地引擎依赖未安装，直接选择会失败并自动回退云端。请问是否改用云端识别（默认），或先安装本地依赖（pip install rapidocr_onnxruntime）？
+```
+
+**示例 3：自动选择**
+```
+用户：帮我识别这个 PDF，选择最合适的引擎
+助手：我将默认使用云端 siliconflow 引擎（PaddleOCR-VL）为您处理。如涉及大文件或需要离线处理，请告知，我可改用本地引擎（需另行安装）。
+```
+
+### 🔧 技术实现
+
+当 AI 助手接收到这些提示词时，会：
+
+1. 解析用户意图，确定要使用的引擎
+2. 调用 PDFOCRProcessor(engine="rapid") 或 PDFOCRProcessor(engine="siliconflow")
+3. 执行 OCR 识别并返回结果
+
+### 🎯 最佳实践
+
+- **明确指定引擎**：如果您对引擎有特定要求，最好在提示词中明确说明
+- **提供上下文**：说明文档类型（如手写体、复杂格式等）有助于助手选择合适的引擎
+- **测试不同引擎**：对于重要文档，可以尝试两种引擎并比较结果
+
+通过使用这些提示词，您可以在与 AI IDE 交互时灵活控制 OCR 引擎的选择，获得最佳的识别效果
+
+## 故障排除
+
+### 常见问题及解决方案
+
+1. **未检测到 SILICON_FLOW_API_KEY**
+   - 问题：调用即失败，错误信息包含「未检测到 SILICON_FLOW_API_KEY」及完整配置指引
+   - 说明：云端引擎为默认引擎，首次使用前需先配置硅基流动 API 密钥（脚本会做前置校验，未配置时不会发起请求）
+   - 解决方案：按错误信息指引操作——前往官网注册并创建密钥（https://cloud.siliconflow.cn/i/xheBSplQ），填入 `.env.example` 保存后重命名为 `.env`；或在会话中直接把密钥发给助手代配
+
+2. **硅基流动API 401错误**
+   - 问题：`Unauthorized: 401 Client Error`
+   - 说明：已配置密钥仍返回 401，通常是密钥无效、已过期或被删除
+   - 解决方案：登录硅基流动后台重新生成 API 密钥，并更新 `.env` 中的 `SILICON_FLOW_API_KEY`
+
+3. **云端请求超时（read timeout）**
+   - 问题：`Read timed out`，或结果中出现【OCR识别失败: ...read timeout...】
+   - 说明：云端大模型冷启动或网络波动时可能发生；脚本默认 300 秒超时并自动重试最多 3 次。仍失败时可增大 `SILICON_FLOW_TIMEOUT` 或稍后重试
+   - 排查：先确认网络可访问 `api.siliconflow.cn`；超大/超密 PDF 可考虑拆分页处理
+
+4. **RapidOCR初始化失败**
+   - 问题：`ModuleNotFoundError: No module named 'rapidocr_onnxruntime'`
+   - 说明：默认使用云端引擎，出现该提示会自动回退云端（siliconflow）。如确实需要本地识别，手动安装：`pip install rapidocr_onnxruntime`
+
+5. **PDF转图片失败**
+   - 问题：`ImportError: No module named 'fitz'`
+   - 解决方案：安装PyMuPDF依赖：`pip install pymupdf`
+
+6. **识别结果为空**
+   - 问题：识别结果文本长度为0
+   - 解决方案：
+     - 检查PDF是否为扫描版（非文本PDF）
+     - 尝试使用硅基流动API引擎
+     - 确保PDF或图片清晰可读
+
+## 许可证
+
+MIT License - 详见 [LICENSE.txt](LICENSE.txt)
